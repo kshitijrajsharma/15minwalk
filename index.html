@@ -174,12 +174,9 @@
       function initMap() {
         map = L.map("map").setView([28.2096, 83.9856], 13);
 
-        L.tileLayer(
-          "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png",
-          {
-            attribution: "&copy; OpenStreetMap, Stadia Alidade Smooth Dark",
-          }
-        ).addTo(map);
+        L.tileLayer("https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap, Stadia Alidade Smooth Dark",
+        }).addTo(map);
 
         Object.keys(CATEGORIES).forEach((category) => {
           markerClusterGroups[category] = L.markerClusterGroup({
