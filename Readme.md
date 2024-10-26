@@ -1,3 +1,3 @@
-### 5 Min walking distance
+### 15 Min walking distance
 
-Amenities available in 5 min walking distance concept 
+Amenities available in 15 min walking distance concept 
