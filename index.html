@@ -32,7 +32,7 @@
 
     <style>
       #map {
-        height: 600px;
+        height: calc(100vh - 250px); /* Dynamic height based on viewport */
         border-radius: 8px;
       }
 
@@ -54,12 +54,6 @@
         height: 20px;
         margin-right: 8px;
         text-align: center;
-      }
-
-      @media (max-width: 768px) {
-        #map {
-          height: 400px;
-        }
       }
 
       .custom-popup {
@@ -89,8 +83,29 @@
     </style>
   </head>
   <body class="bg-light">
-    <div class="container py-4">
-      <h1 class="display-5 mb-4">Concept : 5 min Walking Distance</h1>
+    <div class="container-fluid py-3">
+      <div class="row mb-4">
+        <div class="col-12 col-lg-8 mb-3">
+          <h1 class="display-5">5 Min Walking Distance Analysis</h1>
+          <p>
+            Click on the map to explore essential amenities within a 5-minute
+            walk.
+          </p>
+        </div>
+
+        <div class="col-12 col-lg-4 d-flex align-items-center">
+          <input
+            type="text"
+            id="searchBar"
+            class="form-control"
+            placeholder="Search location..."
+            aria-label="Search location"
+          />
+          <button class="btn btn-primary ms-2" onclick="handleSearch()">
+            <i class="fas fa-search"></i>
+          </button>
+        </div>
+      </div>
 
       <div class="row g-4">
         <div class="col-lg-8">
@@ -104,7 +119,7 @@
         <div class="col-lg-4">
           <div class="card shadow-sm">
             <div class="card-body">
-              <h2 class="h4 mb-4">Summary of Result</h2>
+              <h2 class="h4 mb-4">Summary of Results</h2>
               <div class="alert alert-danger d-none" id="error-message"></div>
 
               <div class="d-flex justify-content-center d-none" id="loading">
@@ -128,30 +143,31 @@
     <script>
       const CATEGORIES = {
         education: {
-          color: "#D81B60", // Darker pink/red
+          color: "#D81B60",
           label: "Education",
           icon: "fa-graduation-cap",
-          clusterColor: "#F06292", // Darker pink for cluster
+          clusterColor: "#F06292",
         },
         financial: {
-          color: "#1976D2", // Darker blue
+          color: "#1976D2",
           label: "Financial",
           icon: "fa-coins",
-          clusterColor: "#64B5F6", // Darker blue for cluster
+          clusterColor: "#64B5F6",
         },
         emergency: {
-          color: "#F57F17", // Darker yellow/orange
+          color: "#F57F17",
           label: "Emergency",
           icon: "fa-hospital",
-          clusterColor: "#FFB74D", // Darker orange for cluster
+          clusterColor: "#FFB74D",
         },
         convenience: {
-          color: "#00796B", // Darker teal/green
+          color: "#00796B",
           label: "Convenience",
           icon: "fa-shop",
-          clusterColor: "#4DB6AC", // Darker teal for cluster
+          clusterColor: "#4DB6AC",
         },
       };
+
       let map, circle;
       let markerClusterGroups = {};
 
@@ -165,7 +181,6 @@
           }
         ).addTo(map);
 
-        // Initialize cluster groups for each category
         Object.keys(CATEGORIES).forEach((category) => {
           markerClusterGroups[category] = L.markerClusterGroup({
             iconCreateFunction: (cluster) => {
@@ -174,7 +189,6 @@
           }).addTo(map);
         });
 
-        // Add legend
         const legend = L.control({ position: "bottomright" });
         legend.onAdd = function () {
           const div = L.DomUtil.create("div", "legend");
@@ -197,26 +211,12 @@
         map.on("click", handleMapClick);
       }
 
-      function createClusterIcon(cluster, category) {
-        const categoryConfig = CATEGORIES[category];
-        return L.divIcon({
-          html: `<div style="background-color: ${categoryConfig.clusterColor}">
-                    <span>${cluster.getChildCount()}</span>
-                </div>`,
-          className: "marker-cluster",
-          iconSize: L.point(40, 40),
-        });
-      }
+      function handleSearch() {
+        const searchBar = document.getElementById("searchBar").value;
+        if (!searchBar) return;
 
-      function createCustomIcon(category) {
-        return L.divIcon({
-          html: `<i class="fas ${CATEGORIES[category].icon}" style="color: ${CATEGORIES[category].color}"></i>`,
-          className: "custom-marker",
-          iconSize: [150, 150],
-          iconAnchor: [10, 10],
-        });
+        alert("Search functionality is under construction.");
       }
-
       function handleMapClick(e) {
         const { lat, lng } = e.latlng;
 
@@ -483,6 +483,24 @@
           lng >= -180 &&
           lng <= 180
         );
+      }
+      function createClusterIcon(cluster, category) {
+        const categoryConfig = CATEGORIES[category];
+        return L.divIcon({
+          html: `<div style="background-color: ${categoryConfig.clusterColor}">
+                    <span>${cluster.getChildCount()}</span>
+                </div>`,
+          className: "marker-cluster",
+          iconSize: L.point(40, 40),
+        });
+      }
+      function createCustomIcon(category) {
+        return L.divIcon({
+          html: `<i class="fas ${CATEGORIES[category].icon}" style="color: ${CATEGORIES[category].color}"></i>`,
+          className: "custom-marker",
+          iconSize: [150, 150],
+          iconAnchor: [10, 10],
+        });
       }
 
       document.addEventListener("DOMContentLoaded", initMap);
