@@ -158,9 +158,12 @@
       function initMap() {
         map = L.map("map").setView([28.2096, 83.9856], 13);
 
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "&copy; OpenStreetMap contributors",
-        }).addTo(map);
+        L.tileLayer(
+          "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png",
+          {
+            attribution: "&copy; OpenStreetMap, Stadia Alidade Smooth Dark",
+          }
+        ).addTo(map);
 
         // Initialize cluster groups for each category
         Object.keys(CATEGORIES).forEach((category) => {
@@ -209,7 +212,7 @@
         return L.divIcon({
           html: `<i class="fas ${CATEGORIES[category].icon}" style="color: ${CATEGORIES[category].color}"></i>`,
           className: "custom-marker",
-          iconSize: [30, 30],
+          iconSize: [150, 150],
           iconAnchor: [10, 10],
         });
       }
@@ -224,8 +227,8 @@
 
         circle = L.circle([lat, lng], {
           radius: 1250,
-          color: "#3B82F6",
-          fillColor: "#3B82F6",
+          color: "#E57373",
+          fillColor: "#FFCDD2",
           fillOpacity: 0.1,
         }).addTo(map);
 
