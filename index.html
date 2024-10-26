@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>5 Min Walking Distance Analysis</title>
+
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+    />
+    <!-- MarkerCluster CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css"
+    />
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+    />
+
+    <style>
+      #map {
+        height: 600px;
+        border-radius: 8px;
+      }
+
+      .legend {
+        padding: 8px;
+        background: white;
+        border-radius: 4px;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 4px 0;
+      }
+
+      .legend-icon {
+        width: 20px;
+        height: 20px;
+        margin-right: 8px;
+        text-align: center;
+      }
+
+      @media (max-width: 768px) {
+        #map {
+          height: 400px;
+        }
+      }
+
+      .custom-popup {
+        margin: 0;
+        padding: 0;
+      }
+
+      .marker-cluster {
+        background-clip: padding-box;
+        border-radius: 20px;
+      }
+
+      .marker-cluster div {
+        width: 30px;
+        height: 30px;
+        margin-left: 5px;
+        margin-top: 5px;
+        text-align: center;
+        border-radius: 15px;
+        font-size: 12px;
+        color: white;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <div class="container py-4">
+      <h1 class="display-5 mb-4">Concept : 5 min Walking Distance</h1>
+
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <div class="card shadow-sm">
+            <div class="card-body p-0">
+              <div id="map"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h2 class="h4 mb-4">Summary of Result</h2>
+              <div class="alert alert-danger d-none" id="error-message"></div>
+
+              <div class="d-flex justify-content-center d-none" id="loading">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+
+              <div id="stats" class="list-group list-group-flush"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+
+    <script>
+      const CATEGORIES = {
+        education: {
+          color: "#D81B60", // Darker pink/red
+          label: "Education",
+          icon: "fa-graduation-cap",
+          clusterColor: "#F06292", // Darker pink for cluster
+        },
+        financial: {
+          color: "#1976D2", // Darker blue
+          label: "Financial",
+          icon: "fa-coins",
+          clusterColor: "#64B5F6", // Darker blue for cluster
+        },
+        emergency: {
+          color: "#F57F17", // Darker yellow/orange
+          label: "Emergency",
+          icon: "fa-hospital",
+          clusterColor: "#FFB74D", // Darker orange for cluster
+        },
+        convenience: {
+          color: "#00796B", // Darker teal/green
+          label: "Convenience",
+          icon: "fa-shop",
+          clusterColor: "#4DB6AC", // Darker teal for cluster
+        },
+      };
+      let map, circle;
+      let markerClusterGroups = {};
+
+      function initMap() {
+        map = L.map("map").setView([28.2096, 83.9856], 13);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+
+        // Initialize cluster groups for each category
+        Object.keys(CATEGORIES).forEach((category) => {
+          markerClusterGroups[category] = L.markerClusterGroup({
+            iconCreateFunction: (cluster) => {
+              return createClusterIcon(cluster, category);
+            },
+          }).addTo(map);
+        });
+
+        // Add legend
+        const legend = L.control({ position: "bottomright" });
+        legend.onAdd = function () {
+          const div = L.DomUtil.create("div", "legend");
+          div.innerHTML = Object.entries(CATEGORIES)
+            .map(
+              ([key, value]) => `
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i class="fas ${value.icon}" style="color: ${value.color}"></i>
+                            </div>
+                            <span>${value.label}</span>
+                        </div>
+                    `
+            )
+            .join("");
+          return div;
+        };
+        legend.addTo(map);
+
+        map.on("click", handleMapClick);
+      }
+
+      function createClusterIcon(cluster, category) {
+        const categoryConfig = CATEGORIES[category];
+        return L.divIcon({
+          html: `<div style="background-color: ${categoryConfig.clusterColor}">
+                    <span>${cluster.getChildCount()}</span>
+                </div>`,
+          className: "marker-cluster",
+          iconSize: L.point(40, 40),
+        });
+      }
+
+      function createCustomIcon(category) {
+        return L.divIcon({
+          html: `<i class="fas ${CATEGORIES[category].icon}" style="color: ${CATEGORIES[category].color}"></i>`,
+          className: "custom-marker",
+          iconSize: [30, 30],
+          iconAnchor: [10, 10],
+        });
+      }
+
+      function handleMapClick(e) {
+        const { lat, lng } = e.latlng;
+
+        if (circle) map.removeLayer(circle);
+        Object.values(markerClusterGroups).forEach((group) =>
+          group.clearLayers()
+        );
+
+        circle = L.circle([lat, lng], {
+          radius: 1250,
+          color: "#3B82F6",
+          fillColor: "#3B82F6",
+          fillOpacity: 0.1,
+        }).addTo(map);
+
+        fetchLocationData(lat, lng);
+      }
+
+      async function fetchLocationData(lat, lng) {
+        const loadingEl = document.getElementById("loading");
+        const errorEl = document.getElementById("error-message");
+        const statsEl = document.getElementById("stats");
+
+        loadingEl.classList.remove("d-none");
+        errorEl.classList.add("d-none");
+        statsEl.innerHTML = "";
+
+        try {
+          const coordinates = generateCircleCoordinates(lat, lng, 1.25);
+          const payload = {
+            geometry: {
+              type: "Polygon",
+              coordinates: [coordinates],
+            },
+            filters: {
+              tags: {
+                all_geometry: {
+                  join_or: {
+                    amenity: [
+                      "hospital",
+                      "clinic",
+                      "doctors",
+                      "pharmacy",
+                      "police",
+                      "fire_station",
+                      "school",
+                      "kindergarten",
+                      "university",
+                      "bank",
+                      "atm",
+                    ],
+                    emergency: ["yes"],
+                    highway: ["bus_stop"],
+                    shop: ["supermarket", "grocery", "bakery", "convenience"],
+                  },
+                },
+              },
+            },
+            geometryType: ["point", "polygon"],
+          };
+
+          const response = await fetch(
+            "https://api-prod.raw-data.hotosm.org/v1/snapshot/plain/",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
+
+          if (!response.ok) throw new Error("Failed to fetch data");
+
+          const data = await response.json();
+          displayResults(data.features);
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.classList.remove("d-none");
+        } finally {
+          loadingEl.classList.add("d-none");
+        }
+      }
+
+      function displayResults(features) {
+        const stats = analyzeFeatures(features);
+
+        features.forEach((feature) => {
+          if (!feature.geometry || !feature.geometry.coordinates) {
+            console.warn("Invalid feature geometry:", feature);
+            return;
+          }
+
+          const coordinates = feature.geometry.coordinates;
+          let lat, lng;
+
+          if (feature.geometry.type === "Point") {
+            [lng, lat] = coordinates;
+          } else if (feature.geometry.type === "Polygon") {
+            const ring = coordinates[0];
+            const center = ring.reduce(
+              (acc, curr) => {
+                return [acc[0] + curr[0], acc[1] + curr[1]];
+              },
+              [0, 0]
+            );
+            lng = center[0] / ring.length;
+            lat = center[1] / ring.length;
+          } else {
+            console.warn("Unsupported geometry type:", feature.geometry.type);
+            return;
+          }
+
+          if (!isValidLatLng(lat, lng)) {
+            console.warn("Invalid coordinates:", lat, lng);
+            return;
+          }
+
+          const category = determineCategory(feature.properties.tags);
+          const marker = L.marker([lat, lng], {
+            icon: createCustomIcon(category),
+          });
+
+          const popupContent = `
+            <div class="custom-popup">
+                <h6 class="mb-1">${
+                  feature.properties.tags.name || "Unnamed Location"
+                }</h6>
+                <p class="mb-0 text-muted"><i class="fas ${
+                  CATEGORIES[category].icon
+                } me-1"></i>${CATEGORIES[category].label}</p>
+            </div>
+        `;
+
+          marker.bindPopup(popupContent);
+          markerClusterGroups[category].addLayer(marker);
+        });
+
+        const statsEl = document.getElementById("stats");
+        statsEl.innerHTML = Object.entries(stats)
+          .map(
+            ([category, data]) => `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas ${
+                      CATEGORIES[category].icon
+                    } me-2" style="color: ${CATEGORIES[category].color}"></i>
+                    ${CATEGORIES[category].label}
+                </div>
+                <div>
+                    <span class="badge bg-primary rounded-pill">${
+                      data.count
+                    }</span>
+                    <small class="text-muted ms-2">${data.percentage.toFixed(
+                      1
+                    )}%</small>
+                </div>
+            </div>
+        `
+          )
+          .join("");
+      }
+
+      function determineCategory(tags) {
+        if (
+          tags.amenity &&
+          ["school", "kindergarten", "university", "college"].includes(
+            tags.amenity
+          )
+        ) {
+          return "education";
+        }
+        if (tags.amenity && ["bank", "atm"].includes(tags.amenity)) {
+          return "financial";
+        }
+        if (
+          tags.amenity &&
+          [
+            "hospital",
+            "clinic",
+            "doctors",
+            "pharmacy",
+            "police",
+            "fire_station",
+          ].includes(tags.amenity)
+        ) {
+          return "emergency";
+        }
+        if (tags.emergency === "yes") {
+          return "emergency";
+        }
+        return "convenience";
+      }
+
+      function analyzeFeatures(features) {
+        const counts = {
+          education: 0,
+          financial: 0,
+          emergency: 0,
+          convenience: 0,
+        };
+
+        features.forEach((feature) => {
+          const category = determineCategory(feature.properties.tags);
+          counts[category]++;
+        });
+
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+        return Object.entries(counts).reduce(
+          (acc, [category, count]) => ({
+            ...acc,
+            [category]: {
+              count,
+              percentage: (count / total) * 100,
+            },
+          }),
+          {}
+        );
+      }
+
+      function generateCircleCoordinates(lat, lng, radius) {
+        const points = 64;
+        const coords = [];
+        const kmToRadian = radius / 6371;
+
+        for (let i = 0; i < points; i++) {
+          const angle = (i * 2 * Math.PI) / points;
+          const latRadian = Math.asin(
+            Math.sin((lat * Math.PI) / 180) * Math.cos(kmToRadian) +
+              Math.cos((lat * Math.PI) / 180) *
+                Math.sin(kmToRadian) *
+                Math.cos(angle)
+          );
+          const lngRadian =
+            (lng * Math.PI) / 180 +
+            Math.atan2(
+              Math.sin(angle) *
+                Math.sin(kmToRadian) *
+                Math.cos((lat * Math.PI) / 180),
+              Math.cos(kmToRadian) -
+                Math.sin((lat * Math.PI) / 180) * Math.sin(latRadian)
+            );
+
+          coords.push([
+            (lngRadian * 180) / Math.PI,
+            (latRadian * 180) / Math.PI,
+          ]);
+        }
+
+        coords.push(coords[0]); // Close the polygon
+        return coords;
+      }
+
+      function isValidLatLng(lat, lng) {
+        return (
+          typeof lat === "number" &&
+          typeof lng === "number" &&
+          !isNaN(lat) &&
+          !isNaN(lng) &&
+          lat >= -90 &&
+          lat <= 90 &&
+          lng >= -180 &&
+          lng <= 180
+        );
+      }
+
+      document.addEventListener("DOMContentLoaded", initMap);
+    </script>
+  </body>
+</html>
